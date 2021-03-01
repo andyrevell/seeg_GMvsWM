@@ -291,8 +291,8 @@ def get_triu(adj, k = 1):
 def get_tissue_ind(metadata, elecLoc, WM_definition = 0):
     ch_eeg = np.asarray(metadata["channels"])
     ch_eloc = np.asarray(elecLoc["electrode_name"].to_list())
-    eloc_ind_gm = np.where(np.array(elecLoc["Tissue_segmentation_distance_from_label_2"]) <= WM_definition)
-    eloc_ind_wm = np.where(np.array(elecLoc["Tissue_segmentation_distance_from_label_2"]) > WM_definition)
+    eloc_ind_gm = np.where(np.array(elecLoc["tissue_segmentation_distance_from_label_2"]) <= WM_definition)
+    eloc_ind_wm = np.where(np.array(elecLoc["tissue_segmentation_distance_from_label_2"]) > WM_definition)
     ch_eloc_gm = ch_eloc[eloc_ind_gm]
     ch_eloc_wm = ch_eloc[eloc_ind_wm]
     ch_intersect_gm = np.intersect1d(ch_eeg, ch_eloc_gm, return_indices = True )
@@ -311,7 +311,7 @@ def get_adj_reorder(adj, metadata, elecLoc):
     ch_eloc = np.asarray(elecLoc["electrode_name"].to_list())
     ch_intersect = np.intersect1d(ch_eeg, ch_eloc, return_indices = True )
     
-    eloc_sort = np.argsort(np.array(elecLoc["Tissue_segmentation_distance_from_label_2"])[ch_intersect[2]]  )
+    eloc_sort = np.argsort(np.array(elecLoc["tissue_segmentation_distance_from_label_2"])[ch_intersect[2]]  )
     adj_sort = adj[:, eloc_sort[:,None], eloc_sort[None,:], :]
 
     return adj_sort
@@ -441,10 +441,10 @@ def plot_adj_time(tt , all_adj, all_adj_gm, all_adj_wm, all_adj_gmwm, bars = [],
 #%%        
     
 
-FC_names = ["xcorr", "pearson", "spearman", "coherence"]
+FC_names = ["xcorr", "pearson", "spearman", "coherence", "mutualInformation"]
 FC_t = 0
 for FC_t in range(len(FC_names)):
-    for i in range(32,36): #range(len(eegTimes)):
+    for i in range(0,4): #range(len(eegTimes)):
     #for i in np.concatenate([range(12,16), range(20,24)]): #range(len(eegTimes)):
         #parsing data DataFrame to get iEEG information
         sub_ID = eegTimes.iloc[i].RID
@@ -491,7 +491,10 @@ for FC_t in range(len(FC_names)):
         fname = ospj(fpath_FC_filt, f"sub-{sub_ID}_{iEEG_filename}_{start_time_usec}_{stop_time_usec}_coherence.pickle")
         with open(fname, 'rb') as f: adj_coherence = pickle.load(f)    
         
-        FC = [adj_xcorr, adj_pearson, adj_spearman, adj_coherence]
+        fname = ospj(fpath_FC_filt, f"sub-{sub_ID}_{iEEG_filename}_{start_time_usec}_{stop_time_usec}_mutualInformation.pickle")
+        with open(fname, 'rb') as f: adj_mi = pickle.load(f)    
+        
+        FC = [adj_xcorr, adj_pearson, adj_spearman, adj_coherence, adj_mi]
         
         adj = copy.deepcopy(FC[FC_t])
     
@@ -516,7 +519,7 @@ for FC_t in range(len(FC_names)):
         if st == 3:
             prefix = FC_names[FC_t]
             print(prefix)
-            if prefix == "coherence": vmin = 0
+            if prefix == "coherence" or prefix == "mutualInformation": vmin = 0
             else: vmin = -1
             if False:
                 fpath = ospj(fpath_video, "distributions", f"sub-{sub_ID}", f"{prefix}")

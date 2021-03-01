@@ -83,7 +83,7 @@ for i in range(len(sub_IDs_unique)):
     #############
     #localization by region to tissue segmentation
     ofname = ospj(ofpath_localization_files, f"sub-{sub_ID}_00_GM_WM_CSF.csv")
-    electrode_localization.by_region(ifname_electrode_localization_sub_ID, ifname_atlas_path, ifname_atlas_labels_path, ofname, noLabels=False)
+    electrode_localization.by_region(ifname_electrode_localization_sub_ID, ifname_atlas_path, ifname_atlas_labels_path, ofname, description = "tissue_segmentation", noLabels=False)
     df = pd.read_csv(ofname, sep=",", header=0)
     for e in range(len( df  )):
         electrode_name = df.iloc[e]["electrode_name"]
@@ -117,7 +117,7 @@ for i in range(len(sub_IDs_unique)):
         else:
             noLabels=False
         ofname = ospj(ofpath_localization_files, f"sub-{sub_ID}_{atlas_name_base}.csv")
-        electrode_localization.by_region(ifname_electrode_localization_sub_ID, ifname_atlas_path, ifname_atlas_labels_path, ofname, noLabels=noLabels)
+        electrode_localization.by_region(ifname_electrode_localization_sub_ID, ifname_atlas_path, ifname_atlas_labels_path, ofname,description =atlas_name_base, noLabels=noLabels)
 
         #rename channels to standard 4 characters (2 letters, 2 numbers)
         df = pd.read_csv(ofname, sep=",", header=0)

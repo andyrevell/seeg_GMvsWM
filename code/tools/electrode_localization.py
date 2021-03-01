@@ -53,7 +53,7 @@ import matplotlib.pyplot as plt
 import os
 
 
-def by_region(ifname_electrode_localization_sub_ID, ifname_atlas_path, ifname_atlas_labels_path, ofname, noLabels=False):
+def by_region(ifname_electrode_localization_sub_ID, ifname_atlas_path, ifname_atlas_labels_path, ofname, description = "unknown_atlas", noLabels=False):
     """
     electrode_coordinates_path = ifname_electrode_localization_sub_ID
     ifname_atlas_path = ifname_seg_sub_ID
@@ -72,8 +72,8 @@ def by_region(ifname_electrode_localization_sub_ID, ifname_atlas_path, ifname_at
     if noLabels == False:
         #getting atlas labels file
         atlas_labels = pd.read_csv(ifname_atlas_labels_path, sep=",", header=None)
-        column_description1 = "{0}_region_number".format(atlas_labels.iloc[0,0])
-        column_description2 = "{0}_label".format(atlas_labels.iloc[0,0])
+        column_description1 = f"{description}_region_number"
+        column_description2 = f"{description}_label"
         atlas_labels = atlas_labels.drop([0, 1], axis=0).reset_index(drop=True)
         atlas_regions_numbers = np.array(atlas_labels.iloc[:,0]).astype("float64")
         atlas_labels_descriptors = np.array(atlas_labels.iloc[:,1])
@@ -82,8 +82,8 @@ def by_region(ifname_electrode_localization_sub_ID, ifname_atlas_path, ifname_at
         atlas_labels_descriptors = np.arange(0,   np.max(img_data)+1 ).astype("int").astype("object")
         atlas_name = os.path.splitext(os.path.basename(ifname_atlas_path))[0]
         atlas_name = os.path.splitext(atlas_name)[0]
-        column_description1 = "{0}_region_number".format(atlas_name)
-        column_description2 = "{0}_label".format(atlas_name)
+        column_description1 = f"{description}_region_number"
+        column_description2 = f"{description}_label"
     # getting electrode coordinates data
     data = pd.read_csv(ifname_electrode_localization_sub_ID, sep=",", header=None)
     data = data.iloc[:, [0, 10, 11, 12]]

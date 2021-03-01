@@ -31,8 +31,8 @@ import numpy as np
 import os
 import sys
 from os.path import join as ospj
-path = ospj("media","arevell","sharedSSD","linux","papers","paper005") #Parent directory of project
-path = ospj("E:\\","linux","papers","paper005") #Parent directory of project
+path = ospj("/media","arevell","sharedSSD","linux","papers","paper005") #Parent directory of project
+#path = ospj("E:\\","linux","papers","paper005") #Parent directory of project
 sys.path.append(ospj(path, "seeg_GMvsWM", "code", "tools"))
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -129,6 +129,7 @@ def printProgressBar(iteration, total, prefix = '', suffix = '', decimals = 1, l
 
 
 #%%
+radii = [1, 2,5, 10, 15, 25, 40]
 for i in range(len(sub_IDs_unique)):
     #parsing data DataFrame to get iEEG information
     sub_ID = sub_IDs_unique[i]
@@ -178,47 +179,55 @@ for i in range(len(sub_IDs_unique)):
 
     e = 0    
     
-    radius = 15 #in mm
-    for e in range(len(electrode_localization)):
-        x0, y0, z0 = coordinates_voxels[e][0], coordinates_voxels[e][1], coordinates_voxels[e][2]
-        electrode_name = electrode_localization["electrode_name"][e]    
-       
-        data[  np.where(data != 0)  ] = 0
-       
+    
+
+    
+    for rr in radii:
+        radius = rr #in mm
         
-       
-        for x in range(x0-radius, x0+radius+1):
-            for y in range(y0-radius, y0+radius+1):
-                for z in range(z0-radius, z0+radius+1):   
-                    if ( radius - np.sqrt(abs(x0-x)**2 + abs(y0-y)**2 + abs(z0-z)**2 ))>=0:
-                        #check to make sure bubble is inside image
-                        if x > data.shape[0]-1:
-                            x1 =  data.shape[0] - 1
-                        elif x < 0:
-                            x1 =  0
-                        else:
-                            x1 = x
-                        if y > data.shape[1]-1:
-                            y1 =  data.shape[1] - 1
-                        elif y < 0:
-                            y1 =  0
-                        else:
-                            y1 = y
-                        if z > data.shape[2] -1:
-                            z1 =  data.shape[2] - 1
-                        elif z < 0:
-                            z1 =  0
-                        else:
-                            z1 = z
-                        data[x1,y1,z1] = 1
-                        printProgressBar(e+1, len(electrode_localization), prefix = '', suffix = '{0} / {1}'.format(e, len(electrode_localization)), decimals = 1, length = 25, fill = "X", printEnd = "\r")
+        ofpath_ROIs_radius = ospj(ofpath_ROIs_sub_ID, f"radius_{radius:02}")
+        if not (os.path.isdir(ofpath_ROIs_radius)): os.makedirs(ofpath_ROIs_radius, exist_ok=True)
+        
+        for e in range(len(electrode_localization)):
+            x0, y0, z0 = coordinates_voxels[e][0], coordinates_voxels[e][1], coordinates_voxels[e][2]
+            electrode_name = electrode_localization["electrode_name"][e]    
+           
+            data[  np.where(data != 0)  ] = 0
+           
             
-        #show_slices(data)
-        
-        ofname_ROIs_sub_ID = ospj(ofpath_ROIs_sub_ID, "{0}_{1}.nii.gz".format(sub_RID, electrode_name))
-        img_sphere = nib.Nifti1Image(data, img.affine)
-        nib.save(img_sphere, ofname_ROIs_sub_ID)
-        
+           
+            for x in range(x0-radius, x0+radius+1):
+                for y in range(y0-radius, y0+radius+1):
+                    for z in range(z0-radius, z0+radius+1):   
+                        if ( radius - np.sqrt(abs(x0-x)**2 + abs(y0-y)**2 + abs(z0-z)**2 ))>=0:
+                            #check to make sure bubble is inside image
+                            if x > data.shape[0]-1:
+                                x1 =  data.shape[0] - 1
+                            elif x < 0:
+                                x1 =  0
+                            else:
+                                x1 = x
+                            if y > data.shape[1]-1:
+                                y1 =  data.shape[1] - 1
+                            elif y < 0:
+                                y1 =  0
+                            else:
+                                y1 = y
+                            if z > data.shape[2] -1:
+                                z1 =  data.shape[2] - 1
+                            elif z < 0:
+                                z1 =  0
+                            else:
+                                z1 = z
+                            data[x1,y1,z1] = 1
+                            printProgressBar(e+1, len(electrode_localization), prefix = '', suffix = '{0} / {1}'.format(e, len(electrode_localization)), decimals = 1, length = 25, fill = "X", printEnd = "\r")
+                
+            #show_slices(data)
+            
+            ofname_ROIs_sub_ID = ospj(ofpath_ROIs_radius, "{0}_{1}.nii.gz".format(sub_RID, electrode_name))
+            img_sphere = nib.Nifti1Image(data, img.affine)
+            nib.save(img_sphere, ofname_ROIs_sub_ID)
+            
     
     
     
