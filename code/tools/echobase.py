@@ -6,6 +6,12 @@ Purpose:
 Function pipelines for filtering time-varying data
 
 Logic of code:
+    1. Default parameters
+    2. Calculating connectivity for cross-correlation, pearson, spearman, coherence, and mutal inforomation for 
+       broadband, delta, theta, alpha, beta, gamma-high, gamma-mid, and gamma-low frequency bands
+    3. Supporting code???
+    
+    Before:
     1. Common average reference (common_avg_ref)
     2. Fit an AR(1) model to the data and retains the residual as the pre-whitened data (ar_one)
     3. bandpass, lowpass, highpass filtering (Notch at 60Hz, HPF at 5Hz, LPF at 115Hz, XCorr at 0.25) (elliptic)
@@ -13,23 +19,49 @@ Logic of code:
     5. Calculate a band-specific functional network, coherence. (multitaper)
 
 Table of Contents:
-A. Main
-    1. broadband_conn
-    2. multiband_conn
-B. Supporting Code:
-    3. common_avg_ref
-    4. ar_one
-    5. elliptic
-    6. xcorr_mag
-    7. xcorr
-C. Utilities
-    8. check_path
-    9. make_path
-    10. check_path_overwrite
-    11. check_has_key
-    12. check_dims
-    13. check_type
-    14. check_function
+
+A. Set up
+    Parameters
+
+B. Main
+    Wrappers:
+    1. crossCorrelation_wrapper
+    2. pearson_wrapper
+    3. spearman_wrapper
+    4. coherence_wrapper
+    5. mutualInformation_wrapper
+    
+    Calculating connectivity: 
+    6. pearson_connectivity
+    7. spearman_connectivity
+    8. crossCorrelation_connectivity
+    9. mutualInformation_connectivity
+    10. coherence_connectivity
+    
+C. Supporting Code:
+    11. common_avg_ref
+    12. automatic_bipolar_ref
+    13. manual_bipolar_ref
+    14. laplacian_bipolar_ref
+    15. ar_one
+    16. elliptic
+    17. elliptic_bandFilter 
+    18. butterworth_filt 
+    
+D. Utilities
+    19. check_path
+    20. getNextCol
+    21. getIndexes
+    22. make_path
+    23. check_path_overwrite
+    24. check_has_key
+    25. check_dims
+    26. check_type
+    27. check_function 
+    28. printProgressBar
+    29. show_eeg_compare
+    30. plot_adj
+    31. plot_adj_allbands
 
 See individual function comments for inputs and outputs
 
@@ -80,9 +112,10 @@ Need homebrew, then do:
 """
 
 """
-A. Main
+A. Set up
 """
-# Parameter set
+# Parameter set - the following are the default parameters
+
 #Bands
 param_band = {}
 param_band['Broadband'] = [1., 127.]
@@ -167,17 +200,14 @@ plot_adj_allbands(adj_mi_all, vmin = 0, vmax = 1 )
 """
 
 
+"""
+A. Main
+"""
 #%%
-#Wrapper scripts
+# Wrapper scripts
 def crossCorrelation_wrapper(data, fs, param = param, avgref=True):
     """
-    Pipeline function for computing a broadband functional network from ECoG.
-
-    See: Khambhati, A. N. et al. (2015).
-    Dynamic Network Drivers of Seizure Generation, Propagation and Termination in
-    Human Neocortical Epilepsy. PLOS Computational Biology, 11(12).
-
-    Data --> CAR Filter --> Notch Filter --> Band-pass Filter --> Cross-Correlation
+    Pipeline function using cross-correlation for computing a band-specific functional network from ECoG.
 
     Parameters
     ----------
@@ -186,14 +216,37 @@ def crossCorrelation_wrapper(data, fs, param = param, avgref=True):
 
         fs: int
             Sampling frequency
+            
+        param: set to default 
 
-        reref: True/False
+        avgref: True/False
             Re-reference data to the common average (default: True)
 
     Returns
     -------
-        adj: ndarray, shape (N, N)
-            Adjacency matrix for N variates
+        adj_xcorr_bb: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for cross-correlation broadband 
+            
+        adj_xcorr_d: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for cross-correlation delta 
+            
+        adj_xcorr_t: ndarray, shape ( N, N, T)
+            Adjacency matrix for N variates over time T for cross-correlation theta 
+            
+        adj_xcorr_a: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for cross-correlation alpha 
+            
+        adj_xcorr_b: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for cross-correlation beta 
+            
+        adj_xcorr_gl: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for cross-correlation gamma-low 
+            
+        adj_xcorr_gm: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for cross-correlation gamma-mid 
+            
+        adj_xcorr_gh: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for cross-correlation gamma-high 
     """
 
     # Standard param checks
@@ -232,6 +285,8 @@ def crossCorrelation_wrapper(data, fs, param = param, avgref=True):
 
 def pearson_wrapper(data, fs, param = param, avgref=True):
     """
+    Pipeline function using pearson correlation for computing a band-specific functional network from ECoG.
+    
     Parameters
     ----------
         data: ndarray, shape (T, N)
@@ -239,14 +294,37 @@ def pearson_wrapper(data, fs, param = param, avgref=True):
 
         fs: int
             Sampling frequency
+        
+        param: set to default
 
-        reref: True/False
+        avgref: True/False
             Re-reference data to the common average (default: True)
 
     Returns
     -------
-        adj: ndarray, shape (N, N)
-            Adjacency matrix for N variates
+        adj_pearson_bb, adj_pearson_bb_pvalue: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for pearson correlation broadband and corresponding matrix of p-values
+            
+        adj_pearson_d, adj_pearson_d_pvalue: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for pearson correlation delta and corresponding matrix of p-values
+ 
+        adj_pearson_t, adj_pearson_t_pvalue: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for pearson correlation theta and corresponding matrix of p-values           
+       
+       adj_pearson_a, adj_pearson_a_pvalue: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for pearson correlation alpha and corresponding matrix of p-values 
+            
+       adj_pearson_b, adj_pearson_b_pvalue: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for pearson correlation beta and corresponding matrix of p-values 
+       
+       adj_pearson_gl, adj_pearson_gl_pvalue: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for pearson correlation gamma-low and corresponding matrix of p-values           
+       
+       adj_pearson_gm, adj_pearson_gm_pvalue: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for pearson correlation gamma-mid and corresponding matrix of p-values 
+            
+       adj_pearson_gh, adj_pearson_gh_pvalue: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for pearson correlation gamma-high and corresponding matrix of p-values 
     """
 
     # Standard param checks
@@ -282,10 +360,11 @@ def pearson_wrapper(data, fs, param = param, avgref=True):
 
     return [adj_pearson_bb, adj_pearson_d, adj_pearson_t, adj_pearson_a, adj_pearson_b, adj_pearson_gl, adj_pearson_gm, adj_pearson_gh], [adj_pearson_bb_pval, adj_pearson_d_pval, adj_pearson_t_pval, adj_pearson_a_pval, adj_pearson_b_pval, adj_pearson_gl_pval, adj_pearson_gm_pval, adj_pearson_gh_pval]
 
-
       
 def spearman_wrapper(data, fs, param = param, avgref=True):
     """
+    Pipeline function using separman correlation for computing a band-specific functional network from ECoG.
+    
     Parameters
     ----------
         data: ndarray, shape (T, N)
@@ -293,14 +372,37 @@ def spearman_wrapper(data, fs, param = param, avgref=True):
 
         fs: int
             Sampling frequency
+            
+        param: set to default
 
-        reref: True/False
+        avgref: True/False
             Re-reference data to the common average (default: True)
 
     Returns
     -------
-        adj: ndarray, shape (N, N)
-            Adjacency matrix for N variates
+        adj_spearman_bb, adj_spearman_bb_pvalue: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for spearman correlation broadband and corresponding matrix of p-values
+            
+        adj_spearman_d, adj_spearman_d_pvalue: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for spearman correlation delta and corresponding matrix of p-values
+ 
+        adj_spearman_t, adj_spearman_t_pvalue: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for spearman correlation theta and corresponding matrix of p-values           
+       
+       adj_spearman_a, adj_spearman_a_pvalue: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for spearman correlation alpha and corresponding matrix of p-values 
+            
+       adj_spearman_b, adj_spearmann_b_pvalue: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for spearman correlation beta and corresponding matrix of p-values 
+       
+       adj_spearman_gl, adj_spearman_gl_pvalue: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for spearman correlation gamma-low and corresponding matrix of p-values           
+       
+       adj_spearman_gm, adj_spearman_gm_pvalue: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for spearman correlation gamma-mid and corresponding matrix of p-values 
+            
+       adj_spearman_gh, adj_spearman_gh_pvalue: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for spearman correlation gamma-high and corresponding matrix of p-values 
     """
 
     # Standard param checks
@@ -334,14 +436,12 @@ def spearman_wrapper(data, fs, param = param, avgref=True):
     print("spearman Correlation Gamma - High")
     adj_spearman_gh, adj_spearman_gh_pval = spearman_connectivity(data_gh, fs)
 
-    return [adj_spearman_bb, adj_spearman_d, adj_spearman_t, adj_spearman_a, adj_spearman_b, adj_spearman_gl, adj_spearman_gm, adj_spearman_gh], [adj_spearman_bb_pval, adj_spearman_d_pval, adj_spearman_t_pval, adj_spearman_a_pval, adj_spearman_b_pval, adj_spearman_gl_pval, adj_spearman_gm_pval, adj_spearman_gh_pval]
-      
+    return [adj_spearman_bb, adj_spearman_d, adj_spearman_t, adj_spearman_a, adj_spearman_b, adj_spearman_gl, adj_spearman_gm, adj_spearman_gh], [adj_spearman_bb_pval, adj_spearman_d_pval, adj_spearman_t_pval, adj_spearman_a_pval, adj_spearman_b_pval, adj_spearman_gl_pval, adj_spearman_gm_pval, adj_spearman_gh_pval]  
     
  
 def coherence_wrapper(data, fs, param = param, avgref=True):
-    
     """
-    Pipeline function for computing a band-specific functional network from ECoG.
+    Pipeline function using coherence for computing a band-specific functional network from ECoG.
 
     See: Khambhati, A. N. et al. (2016).
     Virtual Cortical Resection Reveals Push-Pull Network Control
@@ -356,23 +456,37 @@ def coherence_wrapper(data, fs, param = param, avgref=True):
 
         fs: int
             Sampling frequency
+            
+        param: set to default
 
-        reref: True/False
+        avgref: True/False
             Re-reference data to the common average (default: True)
 
     Returns
     -------
-        adj_alphatheta: ndarray, shape (N, N)
-            Adjacency matrix for N variates (Alpha/Theta Band 5-15 Hz)
-
-        adj_beta: ndarray, shape (N, N)
-            Adjacency matrix for N variates (Beta Band 15-25 Hz)
-
-        adj_lowgamma: ndarray, shape (N, N)
-            Adjacency matrix for N variates (Low Gamma Band 30-40 Hz)
-
-        adj_highgamma: ndarray, shape (N, N)
-            Adjacency matrix for N variates (High Gamma Band 95-105 Hz)
+        adj_coherence_bb: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for coherence broadband 
+            
+        adj_coherence_d: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for coherence delta 
+            
+        adj_coherence_t: ndarray, shape ( N, N, T)
+            Adjacency matrix for N variates over time T for coherence theta 
+            
+        adj_coherence_a: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for coherence alpha 
+            
+        adj_coherence_b: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for coherence beta 
+            
+        adj_coherence_gl: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for coherence gamma-low 
+            
+        adj_coherence_gm: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for coherence gamma-mid 
+            
+        adj_coherence_gh: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for coherence gamma-high 
     """
 
     # Standard param checks
@@ -388,44 +502,28 @@ def coherence_wrapper(data, fs, param = param, avgref=True):
     data_ref_60 = elliptic(data_ref, fs, **param['Notch_60Hz'])
     
     print("Coherence Broadband")
-    band = "Broadband"
-    adj_coherence_bb = coherence_connectivity(data_ref_60, fs, param[band]['wp'])
+    adj_coherence_bb = coherence_connectivity(data_ref_60, fs, param["Broadband"]['wp'])
     print("Coherence Delta")
-    band = "delta"
-    adj_coherence_d = coherence_connectivity(data_ref_60, fs, param[band]['wp'])
+    adj_coherence_d = coherence_connectivity(data_ref_60, fs, param["delta"]['wp'])
     print("Coherence Theta")
-    band = "theta"
-    adj_coherence_t = coherence_connectivity(data_ref_60, fs, param[band]['wp'])
+    adj_coherence_t = coherence_connectivity(data_ref_60, fs, param["theta"]['wp'])
     print("Coherence Alpha")
-    band = "alpha"
-    adj_coherence_a = coherence_connectivity(data_ref_60, fs, param[band]['wp'])
+    adj_coherence_a = coherence_connectivity(data_ref_60, fs, param["alpha"]['wp'])
     print("Coherence Beta")
-    band = "beta"
-    adj_coherence_b = coherence_connectivity(data_ref_60, fs, param[band]['wp'])
+    adj_coherence_b = coherence_connectivity(data_ref_60, fs, param["beta"]['wp'])
     print("Coherence Gamma - Low")
-    band = "gammaLow"
-    adj_coherence_gl = coherence_connectivity(data_ref_60, fs, param[band]['wp'])
+    adj_coherence_gl = coherence_connectivity(data_ref_60, fs, param["gammaLow"]['wp'])
     print("Coherence Gamma - Mid")
-    band = "gammaMid"
-    adj_coherence_gm = coherence_connectivity(data_ref_60, fs, param[band]['wp'])
+    adj_coherence_gm = coherence_connectivity(data_ref_60, fs, param["gammaMid"]['wp'])
     print("Coherence Gamma - High")
-    band = "gammaHigh"
-    adj_coherence_gh = coherence_connectivity(data_ref_60, fs, param[band]['wp'])
+    adj_coherence_gh = coherence_connectivity(data_ref_60, fs, param["gammaHigh"]['wp'])
 
     return adj_coherence_bb, adj_coherence_d, adj_coherence_t, adj_coherence_a, adj_coherence_b, adj_coherence_gl, adj_coherence_gm, adj_coherence_gh
     
     
-    
-    
 def mutualInformation_wrapper(data, fs, param = param, avgref=True):
     """
-    Pipeline function for computing a broadband functional network from ECoG.
-
-    See: Khambhati, A. N. et al. (2015).
-    Dynamic Network Drivers of Seizure Generation, Propagation and Termination in
-    Human Neocortical Epilepsy. PLOS Computational Biology, 11(12).
-
-    Data --> CAR Filter --> Notch Filter --> Band-pass Filter --> Cross-Correlation
+    Pipeline function using mutual information for computing a broadband functional network from ECoG.
 
     Parameters
     ----------
@@ -434,14 +532,37 @@ def mutualInformation_wrapper(data, fs, param = param, avgref=True):
 
         fs: int
             Sampling frequency
+            
+        param: set to default
 
-        reref: True/False
+        avgref: True/False
             Re-reference data to the common average (default: True)
 
     Returns
     -------
-        adj: ndarray, shape (N, N)
-            Adjacency matrix for N variates
+       adj_mi_bb: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for mutual information broadband 
+            
+        adj_mi_d: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for mutual information delta 
+            
+        adj_mi_t: ndarray, shape ( N, N, T)
+            Adjacency matrix for N variates over time T for mutual information theta 
+            
+        adj_mi_a: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for mutual information alpha 
+            
+        adj_mi_b: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for mutual information beta 
+            
+        adj_mi_gl: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for mutual information gamma-low 
+            
+        adj_mi_gm: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for mutual information gamma-mid 
+            
+        adj_mi_gh: ndarray, shape (N, N, T)
+            Adjacency matrix for N variates over time T for mutual information gamma-high 
     """
 
     # Standard param checks
@@ -478,24 +599,30 @@ def mutualInformation_wrapper(data, fs, param = param, avgref=True):
     return adj_mi_bb, adj_mi_d, adj_mi_t, adj_mi_a, adj_mi_b, adj_mi_gl, adj_mi_gm, adj_mi_gh
           
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
 #%%
-    
-    
-    
+# Calculating Connectivity 
+
+   
 def pearson_connectivity(data, fs):
+    """
+    Uses pearson correlation to compute a band-specific functional network from ECoG
+    
+    Parameters
+    ----------
+        data: ndarray, shape (T, N)
+            Input signal with T samples over N variates
+
+        fs: int
+            Sampling frequency
+
+    Returns
+    -------
+        adj, adj_pvalue: ndarray, shape (F, N, N, T)
+            Adjacency matrix for N variates for F frequency-bands over time T for pearson correlation
+            and corresponding matrix of p-values 
+    """
 
     # Retrieve data attributes
-    n_samp, n_chan = data.shape
-
     n_samp, n_chan = data.shape
     triu_ix, triu_iy = np.triu_indices(n_chan, k=1)
 
@@ -507,19 +634,36 @@ def pearson_connectivity(data, fs):
     count = 0
     for n1, n2 in zip(triu_ix, triu_iy):
         t0 = time.time()
-        adj[n1, n2] = pearsonr(  data[:,n1], data[:,n2])[0]
-        adj_pvalue[n1, n2] = pearsonr(  data[:,n1], data[:,n2])[1]
-        t1= time.time(); td = t1-t0; tr = td*(len(triu_ix)-count)/60; printProgressBar(count+1, len(triu_ix), prefix = '', suffix = f"{count}  {np.round(tr,2)} min", decimals = 1, length = 20, fill = "X", printEnd = "\r"); count = count+1
+        adj[n1, n2] = pearsonr(data[:,n1], data[:,n2])[0]
+        adj_pvalue[n1, n2] = pearsonr(data[:,n1], data[:,n2])[1]
+        t1 = time.time(); 
+        td = t1-t0; tr = td*(len(triu_ix)-count)/60; printProgressBar(count+1, len(triu_ix), prefix = '', suffix = f"{count}  {np.round(tr,2)} min", decimals = 1, length = 20, fill = "X", printEnd = "\r"); count += 1
 
     adj += adj.T
     adj_pvalue += adj_pvalue.T
     return adj, adj_pvalue
+
 
 def spearman_connectivity(data, fs):
+    """
+    Uses spearman correlation to compute a band-specific functional network from ECoG
+    
+    Parameters
+    ----------
+        data: ndarray, shape (T, N)
+            Input signal with T samples over N variates
+
+        fs: int
+            Sampling frequency
+
+    Returns
+    -------
+        adj, adj_pvalue: ndarray, shape (F, N, N, T)
+            Adjacency matrix for N variates for F frequency-bands over time T for spearman correlation
+            and corresponding matrix of p-values 
+    """
     
     # Retrieve data attributes
-    n_samp, n_chan = data.shape
-
     n_samp, n_chan = data.shape
     triu_ix, triu_iy = np.triu_indices(n_chan, k=1)
 
@@ -531,19 +675,17 @@ def spearman_connectivity(data, fs):
     count = 0
     for n1, n2 in zip(triu_ix, triu_iy):
         t0 = time.time()
-        adj[n1, n2] = spearmanr(  data[:,n1], data[:,n2])[0]
-        adj_pvalue[n1, n2] = spearmanr(  data[:,n1], data[:,n2])[1]
-        t1= time.time(); td = t1-t0; tr = td*(len(triu_ix)-count)/60; printProgressBar(count+1, len(triu_ix), prefix = '', suffix = f"{count}  {np.round(tr,2)} min", decimals = 1, length = 20, fill = "X", printEnd = "\r"); count = count+1
+        adj[n1, n2] = spearmanr(data[:,n1], data[:,n2])[0]
+        adj_pvalue[n1, n2] = spearmanr(data[:,n1], data[:,n2])[1]
+        t1 = time.time(); td = t1-t0; tr = td*(len(triu_ix)-count)/60; printProgressBar(count+1, len(triu_ix), prefix = '', suffix = f"{count}  {np.round(tr,2)} min", decimals = 1, length = 20, fill = "X", printEnd = "\r"); count += 1
     adj += adj.T
     adj_pvalue += adj_pvalue.T
     return adj, adj_pvalue
+
 
 def crossCorrelation_connectivity(data_hat, fs, tau, absolute=False):
     """
-    The xcorr_mag function implements a cross-correlation similarity function
-    for computing functional connectivity -- maximum magnitude cross-correlation
-
-    This function implements an FFT-based cross-correlation (using convolution).
+    Uses FFT-based cross-correlation (using convolution) to compute a band-specific functional network from ECoG
 
     Parameters
     ----------
@@ -555,11 +697,14 @@ def crossCorrelation_connectivity(data_hat, fs, tau, absolute=False):
 
         tau: float
             The max lag limits of cross-correlation in seconds
+        
+        absolute: True/False
+            (default: False)
 
     Returns
     -------
-        adj: ndarray, shape (N, N)
-            Adjacency matrix for N variates
+        adj: ndarray, shape (F, N, N, T)
+            Adjacency matrix for N variates for F frequency-bands over time T for cross-correlation
     """
 
     # Standard param checks
@@ -591,30 +736,42 @@ def crossCorrelation_connectivity(data_hat, fs, tau, absolute=False):
     for n1, n2 in zip(triu_ix, triu_iy):
         t0 = time.time()
         xc = 1 / n_samp * np.fft.irfft( data_hat_fft[:, n1] * np.conj(data_hat_fft[:, n2]))
-        if absolute==True:
+        if absolute:
             adj[n1, n2] = np.max( np.abs(xc[tau_ix])  )
         #taking the absolute max value, whether negative or positive, but preserving sign
-        elif absolute==False:
+        elif not absolute:
             if xc[tau_ix].max() > np.abs(xc[tau_ix].min()):
                 adj[n1, n2] = xc[tau_ix].max()
             else:
                 adj[n1, n2] = xc[tau_ix].min()
-        t1= time.time(); td = t1-t0; tr = td*(len(triu_ix)-count)/60; printProgressBar(count+1, len(triu_ix), prefix = '', suffix = f"{count}  {np.round(tr,2)} min", decimals = 1, length = 20, fill = "X", printEnd = "\r"); count = count+1
+        t1 = time.time(); td = t1-t0; tr = td*(len(triu_ix)-count)/60; printProgressBar(count+1, len(triu_ix), prefix = '', suffix = f"{count}  {np.round(tr,2)} min", decimals = 1, length = 20, fill = "X", printEnd = "\r"); count += 1
     adj += adj.T
 
     return adj
 
    
-
-
 def mutualInformation_connectivity(data_hat, fs):
-    #https://www.roelpeters.be/calculating-mutual-information-in-python/
-    #https://scikit-learn.org/stable/modules/generated/sklearn.feature_selection.mutual_info_regression.html#id6
-    
-    
-    # Retrieve data_hat attributes
-    n_samp, n_chan = data_hat.shape
+    """
+    Uses mutual information to compute a band-specific functional network from ECoG
+     
+    https://www.roelpeters.be/calculating-mutual-information-in-python/
+    https://scikit-learn.org/stable/modules/generated/sklearn.feature_selection.mutual_info_regression.html#id6
+   
+    Parameters
+    ----------
+        data_hat: ndarray, shape (T, N)
+            Input signal with T samples over N variates
 
+        fs: int
+            Sampling frequency
+
+    Returns
+    -------
+        adj: ndarray, shape (F, N, N, T)
+            Adjacency matrix for N variates for F frequency-bands over time T for mutal information
+    """
+   
+    # Retrieve data_hat attributes
     n_samp, n_chan = data_hat.shape
     triu_ix, triu_iy = np.triu_indices(n_chan, k=1)
 
@@ -634,14 +791,14 @@ def mutualInformation_connectivity(data_hat, fs):
         
         #METHOD 3 - best
         adj[n1, n2] = mutual_info_regression( data_hat[:,n1].reshape(-1,1), data_hat[:,n2], n_neighbors=3  ) #Note: Very slow
-        t1= time.time(); td = t1-t0; tr = td*(len(triu_ix)-count)/60; printProgressBar(count+1, len(triu_ix), prefix = '', suffix = f"{count}  {np.round(tr,2)} min", decimals = 1, length = 20, fill = "X", printEnd = "\r"); count = count+1
+        t1 = time.time(); td = t1-t0; tr = td*(len(triu_ix)-count)/60; printProgressBar(count+1, len(triu_ix), prefix = '', suffix = f"{count}  {np.round(tr,2)} min", decimals = 1, length = 20, fill = "X", printEnd = "\r"); count += 1
     adj += adj.T
     return adj
 
+
 def coherence_connectivity(data_hat, fs, cf):
     """
-    The multitaper function windows the signal using multiple Slepian taper
-    functions and then computes coherence between windowed signals.
+    Uses coherence to compute a band-specific functional network from ECoG
 
     Parameters
     ----------
@@ -651,20 +808,13 @@ def coherence_connectivity(data_hat, fs, cf):
         fs: int
             Sampling frequency
 
-        time_band: float
-            The time half bandwidth resolution of the estimate [-NW, NW];
-            such that resolution is 2*NW
-
-        n_taper: int
-            Number of Slepian sequences to use (Usually < 2*NW-1)
-
         cf: list
             Frequency range over which to compute coherence [-NW+C, C+NW]
 
     Returns
     -------
-        adj: ndarray, shape (N, N)
-            Adjacency matrix for N variates
+        adj: ndarray, shape (F, N, N, T)
+            Adjacency matrix for N variates for F frequency-bands over time T for coherence 
     """
 
     # Standard param checks
@@ -692,7 +842,7 @@ def coherence_connectivity(data_hat, fs, cf):
             out = signal.coherence(x= data_hat[:, n1],
                                    y = data_hat[:, n2],
                                    fs = fs,
-                                   window= range(int(fs-fs/3)) #if n_samp = fs, the window has to be less than fs, or else you will get output as all ones. So I modified to be fs - -fs/3, and not just fs
+                                   window= range(int(fs-fs/3)) #if n_samp = fs, the window has to be less than fs, or else you will get output as all ones. So I modified to be fs - fs/3, and not just fs
                                    )
 
             # Find closest frequency to the desired center frequency
@@ -701,19 +851,14 @@ def coherence_connectivity(data_hat, fs, cf):
 
             # Store coherence in association matrix
             adj[n1, n2] = np.mean(out[1][cf_idx])
-        t1= time.time(); td = t1-t0; tr = td*(len(triu_ix)-count)/60; printProgressBar(count+1, len(triu_ix), prefix = '', suffix = f"{count}  {np.round(tr,2)} min", decimals = 1, length = 20); count = count+1
+        t1 = time.time(); td = t1-t0; tr = td*(len(triu_ix)-count)/60; printProgressBar(count+1, len(triu_ix), prefix = '', suffix = f"{count}  {np.round(tr,2)} min", decimals = 1, length = 20); count += 1
 
     adj += adj.T
 
     return adj    
     
 
-
-
-   
-
 """
-
 def multitaper(data, fs, time_band, n_taper, cf):
     
     The multitaper function windows the signal using multiple Slepian taper
@@ -787,17 +932,19 @@ def multitaper(data, fs, time_band, n_taper, cf):
 
             # Store coherence in association matrix
             adj[n1, n2] = np.mean(out['cohe'][cf_idx])
-        t1= time.time(); td = t1-t0; tr = td*(len(triu_ix)-count)/60; printProgressBar(count+1, len(triu_ix), prefix = '', suffix = f"{count}  {np.round(tr,2)} min", decimals = 1, length = 20, fill = "X", printEnd = "\r"); count = count+1
+        t1 = time.time(); td = t1-t0; tr = td*(len(triu_ix)-count)/60; printProgressBar(count+1, len(triu_ix), prefix = '', suffix = f"{count}  {np.round(tr,2)} min", decimals = 1, length = 20, fill = "X", printEnd = "\r"); count += 1
 
     adj += adj.T
 
-    return adj
+    return adj    
 """
+
+
+
 #%%
 """
 B. Referencing and Filters
 """
-
 
 def common_avg_ref(data):
     """
@@ -819,6 +966,110 @@ def common_avg_ref(data):
     check_dims(data, 2)
     # Remove common mode signal
     data_reref = (data.T - data.mean(axis=1)).T
+    return data_reref
+
+def automatic_bipolar_ref(data, data_col):
+    """
+    The automatic_bipolar_ref function calculates the bipolar montaged signal.
+    
+    Parameters
+    ----------
+    data: ndarray, shape (T, N)
+        Input signal with T samples over N variates
+        
+    data_col: column names of the data Pandas frame (list of electrod names)
+    
+    Returns
+    -------
+    data_reref: ndarray, shape (T, N)
+        Bipolar referenced signal
+    """
+    # Standard param checks
+    check_type(data, np.ndarray)
+    check_dims(data, 2)
+    # bipolar/tripolar montaging
+    data_bp = pd.DataFrame()
+    for i in range(1, data.shape[1] - 1):
+        input_1 = data[:, i]
+        input_2 = data[:, getNextCol(data_col, data_col[i])]
+        data_bp[data_col[i]] = input_1 - input_2
+    data_reref = np.array(data_bp)
+    return data_reref
+
+def manual_bipolar_ref(data, data_col, csvcols):
+    """
+    The manual_bipolar_ref function calculates the bipolar montaged signal with
+    a CSV file that informs the subtractions.
+    
+    Parameters
+    ----------
+    data: ndarray, shape (T, N)
+        Input signal with T samples over N variates
+    
+    csvcols: the CSV file with 2 columns: the original electrode, and the bipolar reference
+    
+    data_col: column names of the data Pandas frame (list of electrode names)
+    
+    Returns
+    -------
+    data_reref: ndarray, shape (T, N)
+        Bipolar Referenced signal
+    """
+    #csvcols = np.array(pd.read_csv('manual_bipolar_ref_columns.csv'))
+    data_bp = pd.DataFrame()
+    for i in range(0, csvcols.shape[0]):
+        input_1 = data[:, list(data_col).index(csvcols[i][0])]
+        input_2 = data[:, list(data_col).index(csvcols[i][1])]
+        data_bp[data_col[i]] = input_1 - input_2
+    data_reref = np.array(data_bp)
+    return data_reref
+
+def laplacian_ref(data, data_col, n, csvcoor):
+    """
+    The laplacian_ref function calculates the laplacian montaged signal with a
+    CSV file that has the coordinates.
+ 
+    Parameters
+    ----------
+    data: ndarray, shape (T, N)
+        Input signal with T samples over N variates
+   
+    n: number of electrodes to average (Laplacian)
+    
+    csvcols: the CSV file with MNI coordinates
+    
+    data_col: column names of the data Pandas frame (list of electrode names)
+ 
+    Returns
+    -------
+    data_reref: ndarray, shape (T, N)
+        Bipolar Referenced signal
+    """
+    data_lp = pd.DataFrame()
+    #csvcoor = pd.read_csv('sub-RID0278_electrode_localization.csv')
+    csv_names = csvcoor['electrode_name']
+    for j in range(0, csv_names.shape[0]):
+        if (getIndexes(pd.DataFrame(data.columns), csv_names[j]) == []):
+            csvcoor = csvcoor.drop(j)
+    # note I need to get rid of the electrodes that are not in data but are in the csv file above
+    coordata = csvcoor[['x_coordinate', 'y_coordinate', 'z_coordinate']]
+    coorindex = list(csvcoor[['electrode_name']]['electrode_name'])
+    # coorindex = [item for elem in coorindex for item in elem]
+    csvcoor = pd.DataFrame(coordata.values, columns=['xcord', 'ycord', 'zcord'], index=coorindex)
+    distcoor = pd.DataFrame(distance_matrix(csvcoor.values, csvcoor.values),
+    index=csvcoor.index, columns=csvcoor.index)
+    for i in range(0, data.shape[1] - 1):
+        input_1 = data[:, i]
+        # find the n least numbers
+        min_elecs = distcoor.nsmallest(n, [data_col[i]]).index.tolist()
+        for j in range(0, n):
+            if j == 0:
+                input_2 = data[:, list(data_col).index(min_elecs[j])]
+            else:
+                input_2 = input_2 + data[:, list(data_col).index(min_elecs[j])]
+        input_2 = input_2 / n
+        data_lp[data_col[i]] = input_1 - input_2
+     data_reref = np.array(data_lp)
     return data_reref
 
 
@@ -924,44 +1175,96 @@ def elliptic(data_hat, fs, wp, ws, gpass, gstop):
 
 
 def elliptic_bandFilter(data, fs, param):
+    """
+    Parameters
+    ----------
+        data: ndarray, shape (T, N)
+            Input signal with T samples over N variates
+
+        fs: int
+            Sampling frequency
+            
+        param: set to default
+
+    Returns
+    -------
+        data_bb: ndarray, shape (T, N)
+            Filtered signal with T samples over N variates for broadband 
+            
+        data_d: ndarray, shape (T, N)
+            Filtered signal with T samples over N variates for delta
+            
+        data_t: ndarray, shape (T, N)
+            Filtered signal with T samples over N variates for theta
+        
+        data_a: ndarray, shape (T, N)
+            Filtered signal with T samples over N variates for alpha
+            
+        data_b: ndarray, shape (T, N)
+            Filtered signal with T samples over N variates for beta
+            
+        data_gl: ndarray, shape (T, N)
+            Filtered signal with T samples over N variates for gamma-low
+        
+        data_gm: ndarray, shape (T, N)
+            Filtered signal with T samples over N variates for gamma-mid
+            
+        data_gh: ndarray, shape (T, N)
+            Filtered signal with T samples over N variates for gamma-high
+    """
     
     data_60 = elliptic(data, fs, **param['Notch_60Hz']) 
     band = "Broadband"
-    data_bb = elliptic(data_60, fs,  [param[band]['wp'][1]], [param[band]['ws'][1]], gpass,  gstop)
-    data_bb = elliptic(data_bb, fs,  [param[band]['wp'][0]], [param[band]['ws'][0]], gpass,  gstop)
+    data_bb = elliptic(data_60, fs, [param[band]['wp'][1]], [param[band]['ws'][1]], gpass,  gstop)
+    data_bb = elliptic(data_bb, fs, [param[band]['wp'][0]], [param[band]['ws'][0]], gpass,  gstop)
 
     band = "delta"
-    data_d = elliptic(data_60, fs,  [param[band]['wp'][1]], [param[band]['ws'][1]], gpass,  gstop)
-    data_d = elliptic(data_d, fs,  [param[band]['wp'][0]], [param[band]['ws'][0]], gpass,  gstop)
+    data_d = elliptic(data_60, fs, [param[band]['wp'][1]], [param[band]['ws'][1]], gpass,  gstop)
+    data_d = elliptic(data_d, fs, [param[band]['wp'][0]], [param[band]['ws'][0]], gpass,  gstop)
     
     band = "theta"
-    data_t = elliptic(data_60, fs,  [param[band]['wp'][1]], [param[band]['ws'][1]], gpass,  gstop)
-    data_t = elliptic(data_t, fs,  [param[band]['wp'][0]], [param[band]['ws'][0]], gpass,  gstop)
+    data_t = elliptic(data_60, fs, [param[band]['wp'][1]], [param[band]['ws'][1]], gpass,  gstop)
+    data_t = elliptic(data_t, fs, [param[band]['wp'][0]], [param[band]['ws'][0]], gpass,  gstop)
     
     band = "alpha"
-    data_a = elliptic(data_60, fs,  [param[band]['wp'][1]], [param[band]['ws'][1]], gpass,  gstop)
-    data_a = elliptic(data_a, fs,  [param[band]['wp'][0]], [param[band]['ws'][0]], gpass,  gstop)
+    data_a = elliptic(data_60, fs, [param[band]['wp'][1]], [param[band]['ws'][1]], gpass,  gstop)
+    data_a = elliptic(data_a, fs, [param[band]['wp'][0]], [param[band]['ws'][0]], gpass,  gstop)
 
     band = "beta"
-    data_b = elliptic(data_60, fs,  [param[band]['wp'][1]], [param[band]['ws'][1]], gpass,  gstop)
-    data_b = elliptic(data_b, fs,  [param[band]['wp'][0]], [param[band]['ws'][0]], gpass,  gstop)
+    data_b = elliptic(data_60, fs, [param[band]['wp'][1]], [param[band]['ws'][1]], gpass,  gstop)
+    data_b = elliptic(data_b, fs, [param[band]['wp'][0]], [param[band]['ws'][0]], gpass,  gstop)
     
     band = "gammaLow"
-    data_gl = elliptic(data_60, fs,  [param[band]['wp'][1]], [param[band]['ws'][1]], gpass,  gstop)
-    data_gl = elliptic(data_gl, fs,  [param[band]['wp'][0]], [param[band]['ws'][0]], gpass,  gstop)
+    data_gl = elliptic(data_60, fs, [param[band]['wp'][1]], [param[band]['ws'][1]], gpass,  gstop)
+    data_gl = elliptic(data_gl, fs, [param[band]['wp'][0]], [param[band]['ws'][0]], gpass,  gstop)
     
     band = "gammaMid"
-    data_gm = elliptic(data_60, fs,  [param[band]['wp'][1]], [param[band]['ws'][1]], gpass,  gstop)
-    data_gm = elliptic(data_gm, fs,  [param[band]['wp'][0]], [param[band]['ws'][0]], gpass,  gstop)
+    data_gm = elliptic(data_60, fs, [param[band]['wp'][1]], [param[band]['ws'][1]], gpass,  gstop)
+    data_gm = elliptic(data_gm, fs, [param[band]['wp'][0]], [param[band]['ws'][0]], gpass,  gstop)
 
     band = "gammaHigh"
-    data_gh = elliptic(data_60, fs,  [param[band]['wp'][1]], [param[band]['ws'][1]], gpass,  gstop)
-    data_gh = elliptic(data_gh, fs,  [param[band]['wp'][0]], [param[band]['ws'][0]], gpass,  gstop)
+    data_gh = elliptic(data_60, fs, [param[band]['wp'][1]], [param[band]['ws'][1]], gpass,  gstop)
+    data_gh = elliptic(data_gh, fs, [param[band]['wp'][0]], [param[band]['ws'][0]], gpass,  gstop)
 
     return data_bb, data_d, data_t, data_a, data_b, data_gl, data_gm, data_gh
 
 
 def butterworth_filt(data, fs):
+    """
+    Parameters
+    ----------
+        data: ndarray, shape (T, N)
+            Input signal with T samples over N variates
+
+        fs: int
+            Sampling frequency
+
+    Returns
+    -------
+       notched: ndarray, shape (T, N)
+            Filtered signal with T samples over N variates
+    """
+    
     filtered = np.zeros(data.shape)
     w = np.array([1, 120])  / np.array([(fs / 2), (fs / 2)])  # Normalize the frequency
     b, a = signal.butter(4, w, 'bandpass')
@@ -976,11 +1279,61 @@ def butterworth_filt(data, fs):
 
 
 
-
 #%%
 """
 C. Utilities:
 """
+
+def getNextCol(datacols, currcol):
+    """
+    This getNextCol function is a helper function for the automatic bipolar montaging. It sorts the column list
+    alphabetically, and returns the appropriate "next" column for bipolar montaging
+     
+    Parameters
+    ----------
+        datacols: list of columns of the original data
+
+        currcol: current column of interest
+
+    Returns
+    -------
+        k: the index of the next column
+    """
+    
+     collist = sorted(list(datacols))
+     for j in range(0,len(collist)-1):
+        if(collist[j] == currcol):
+            nextcol = collist[j+1]
+     for k in range(0, datacols.shape[0]):
+        if(datacols[k] == nextcol):
+            return k
+
+        
+def getIndexes(dfObj, value):
+    """
+    This getIndexes function is a helper function for the Laplacian montaging. It makes sure the CSV
+    electrode files have the same electrodes as the voltage data
+ 
+    Parameters
+    ----------
+        dfObj: 
+
+        value: 
+
+    Returns
+    -------
+        listOfPos: 
+    """
+    listOfPos = list()
+    result = dfObj.isin([value])
+    seriesObj = result.any()
+    columnNames = list(seriesObj[seriesObj == True].index)
+    for col in columnNames:
+        rows = list(result[col][result[col] == True].index)
+        for row in rows:
+            listOfPos.append((row, col))
+    return listOfPos
+
 
 def check_path(path):
     '''
@@ -1083,6 +1436,7 @@ def check_function(obj):
     if not inspect.isfunction(obj):
         raise TypeError('%r must be a function.' % (obj))
 
+        
 # Progress bar function
 def printProgressBar(iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = "X", printEnd = "\r"):
     """
@@ -1107,6 +1461,27 @@ def printProgressBar(iteration, total, prefix = '', suffix = '', decimals = 1, l
         
         
 def show_eeg_compare(data, data_hat, fs, channel = 0, start_sec = 0, stop_sec = 2):
+    """
+    Plots eeg for comparison 
+    @params:
+        data: ndarray, shape (T, N)
+            Input signal with T samples over N variates
+            
+        data_hat: ndarray, shape (T, N)
+            Input signal with T samples over N variates
+        
+        fs: int
+            Sampling frequency
+        
+        channel: int
+            (default = 0)
+        
+        start_sec: int
+            Starting time (default = 0)
+        
+        stop_sec: int
+            Stopping time (default = 2)
+    """
     data_ch = data[:,channel]
     data_ch_hat = data_hat[:,channel]    
     fig,axes = plt.subplots(1,2,figsize=(8,4), dpi = 300)
@@ -1116,10 +1491,38 @@ def show_eeg_compare(data, data_hat, fs, channel = 0, start_sec = 0, stop_sec = 
 
 
 def plot_adj(adj, vmin = -1, vmax = 1 ):
+    """
+    Plots adjacency matrix 
+    @params:
+        adj: ndarray, shape (N, N)
+             Adjacency matrix for N variates
+        
+        vmin: int
+            (default = -1)
+        
+        vmax: int
+            (default = 1)
+    """    
     fig,axes = plt.subplots(1,1,figsize=(4,4), dpi = 300)
     sns.heatmap(adj, square=True, ax = axes, vmin = vmin, vmax = vmax)
 
+    
 def plot_adj_allbands(adj_list, vmin = -1, vmax = 1, titles = ["Broadband", "Delta", "Theta", "Alpha", "Beta", "Gamma - Low", "Gamma - Mid", "Gamma - High"] ):
+    """
+    Plots adjacency matrix for all bands
+    @params:
+        adj: ndarray, shape (F, N, N)
+             Adjacency matrix for N variates for F frequency bands 
+        
+        vmin: int
+            (default = -1)
+        
+        vmax: int
+            (default = 1)
+        
+        titles: frequency band names
+            (default = "Broadband", "Delta", "Theta", "Alpha", "Beta", "Gamma - Low", "Gamma - Mid", "Gamma - High")
+    """ 
     fig,axes = plt.subplots(2,4,figsize=(16,9), dpi = 300)
     count = 0
     for x in range(2):
@@ -1127,7 +1530,7 @@ def plot_adj_allbands(adj_list, vmin = -1, vmax = 1, titles = ["Broadband", "Del
             sns.heatmap(adj_list[count], square=True, ax = axes[x][y], vmin = vmin, vmax = vmax)
             axes[x][y].set_title(titles[count], size=10)
             count = count+1
-
+            
 
 #%%
 #visulaize
@@ -1212,10 +1615,6 @@ print(f"Spearman: {np.round( spearmanr(d1, d2)[0],2 )}; p-value: {np.round( spea
 
 fig,axes = plt.subplots(1,1,figsize=(8,4), dpi = 300)
 sns.regplot(  x = data_butter[range(fs*st, fs*sp),  n1], y= data_butter[range(fs*st, fs*sp),n2], ax = axes , scatter_kws={"s":0.1})
-
-
-
-
 
 
 elecLoc["Tissue_segmentation_distance_from_label_2"]   
